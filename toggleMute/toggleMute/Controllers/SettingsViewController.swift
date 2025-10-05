@@ -6,6 +6,9 @@ import KeyboardShortcuts
 
 extension KeyboardShortcuts.Name {
     static let toggleMuteShortcut = Self("toggleMuteShortcut", default: .init(.k, modifiers: [.command, .option]))
+    static let muteOnlyShortcut = Self("muteOnlyShortcut")
+    static let unmuteOnlyShortcut = Self("unmuteOnlyShortcut")
+    static let pushToToggleShortcut = Self("pushToToggleShortcut")
 }
 
 class SettingsViewController: NSViewController {
@@ -15,6 +18,9 @@ class SettingsViewController: NSViewController {
     @IBOutlet weak var redMenuBarBackgroundCheckBox: NSButton!
     @IBOutlet var quitButton: NSButton!
     @IBOutlet weak var shortcutSubView: NSView!
+    @IBOutlet weak var muteOnlyShortcutSubView: NSView!
+    @IBOutlet weak var unmuteOnlyShortcutSubView: NSView!
+    @IBOutlet weak var pushToToggleShortcutSubView: NSView!
     @IBOutlet weak var versionLabel: NSTextField!
     private var preferences: Preferences!
     let defaults = UserDefaults.standard
@@ -67,12 +73,28 @@ class SettingsViewController: NSViewController {
         }
         
         let recorder = KeyboardShortcuts.RecorderCocoa(for: .toggleMuteShortcut)
-
         recorder.translatesAutoresizingMaskIntoConstraints = false
         recorder.widthAnchor.constraint(greaterThanOrEqualToConstant: 130).isActive = true
         recorder.heightAnchor.constraint(greaterThanOrEqualToConstant: 24).isActive = true
-        
         shortcutSubView.addSubview(recorder)
+
+        let muteOnlyRecorder = KeyboardShortcuts.RecorderCocoa(for: .muteOnlyShortcut)
+        muteOnlyRecorder.translatesAutoresizingMaskIntoConstraints = false
+        muteOnlyRecorder.widthAnchor.constraint(greaterThanOrEqualToConstant: 130).isActive = true
+        muteOnlyRecorder.heightAnchor.constraint(greaterThanOrEqualToConstant: 24).isActive = true
+        muteOnlyShortcutSubView.addSubview(muteOnlyRecorder)
+
+        let unmuteOnlyRecorder = KeyboardShortcuts.RecorderCocoa(for: .unmuteOnlyShortcut)
+        unmuteOnlyRecorder.translatesAutoresizingMaskIntoConstraints = false
+        unmuteOnlyRecorder.widthAnchor.constraint(greaterThanOrEqualToConstant: 130).isActive = true
+        unmuteOnlyRecorder.heightAnchor.constraint(greaterThanOrEqualToConstant: 24).isActive = true
+        unmuteOnlyShortcutSubView.addSubview(unmuteOnlyRecorder)
+
+        let pushToToggleRecorder = KeyboardShortcuts.RecorderCocoa(for: .pushToToggleShortcut)
+        pushToToggleRecorder.translatesAutoresizingMaskIntoConstraints = false
+        pushToToggleRecorder.widthAnchor.constraint(greaterThanOrEqualToConstant: 130).isActive = true
+        pushToToggleRecorder.heightAnchor.constraint(greaterThanOrEqualToConstant: 24).isActive = true
+        pushToToggleShortcutSubView.addSubview(pushToToggleRecorder)
         
     }
     

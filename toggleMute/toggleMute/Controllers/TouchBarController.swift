@@ -1,6 +1,14 @@
 // Author: Sascha Petrik
 
 import Cocoa
+import AVFoundation
+
+enum ToggleMode {
+    case toggle
+    case muteOnly
+    case unmuteOnly
+    case pushToToggle
+}
 
 fileprivate extension NSTouchBarItem.Identifier {
     static let touchBarButtonIdentifier = NSTouchBarItem.Identifier("com.touchbar.toggleMute")
@@ -71,6 +79,31 @@ class TouchBarController {
     @objc func toggleMuteStateObj() {
         toggleMuteState()
     }
+
+
+    func handleToggleMode(mode: ToggleMode) {
+        switch mode {
+        case .toggle:
+            toggleMuteState()
+        case .muteOnly:
+            toggleMuteStateHard(setMute: true)
+        case .unmuteOnly:
+            toggleMuteStateHard(setMute: false)
+        case .pushToToggle:
+            // This is handled by keyDown (unmute) and keyUp (mute) events
+            break
+        }
+    }
+
+
+    func pushToToggleDown() {
+        toggleMuteStateHard(setMute: false)
+    }
+
+
+    func pushToToggleUp() {
+        toggleMuteStateHard(setMute: true)
+    }
     
     
     func setNewVolume(newValue: Int) {
@@ -120,9 +153,10 @@ class TouchBarController {
             if(isKeyPresentInUserDefaults(key: "defaultInputVol")){
                 unmuteVal = defaults.integer(forKey: "defaultInputVol")
             }
-            
+
             setNewVolume(newValue: unmuteVal)
-            
+            playSound(named: "Glass")
+
         } else if(setMute && !isMuted) {
             
             defaults.set(true, forKey: "isMuted")
@@ -132,8 +166,9 @@ class TouchBarController {
             
             touchBarButton?.image = imageMute
             touchBarButton?.bezelColor = NSColor.red
+            playSound(named: "Tink")
             setNewVolume(newValue: 0)
-            
+
             if(redMenuBarIcon){
                 button?.image = imageMute?.tint(color: .red)
             }
@@ -143,9 +178,14 @@ class TouchBarController {
             }
             
         }
-        
+
     }
-    
+
+
+    private func playSound(named soundName: String) {
+        NSSound(named: soundName)?.play()
+    }
+
 }
 
 

@@ -123,12 +123,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         touchBarController.configureUI()
         
         KeyboardShortcuts.onKeyDown(for: .toggleMuteShortcut) {
-            self.touchBarController.toggleMuteState()
-            print("start")
+            self.touchBarController.handleToggleMode(mode: .toggle)
         }
-        
-        KeyboardShortcuts.onKeyUp(for: .toggleMuteShortcut) {
-            print("stop")
+
+        KeyboardShortcuts.onKeyDown(for: .muteOnlyShortcut) {
+            self.touchBarController.handleToggleMode(mode: .muteOnly)
+        }
+
+        KeyboardShortcuts.onKeyDown(for: .unmuteOnlyShortcut) {
+            self.touchBarController.handleToggleMode(mode: .unmuteOnly)
+        }
+
+        KeyboardShortcuts.onKeyDown(for: .pushToToggleShortcut) {
+            self.touchBarController.pushToToggleDown()
+        }
+
+        KeyboardShortcuts.onKeyUp(for: .pushToToggleShortcut) {
+            self.touchBarController.pushToToggleUp()
         }
         
     }

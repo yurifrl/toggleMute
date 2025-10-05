@@ -1,0 +1,51 @@
+version: '3'
+
+vars:
+  SCHEME: toggleMute
+  CONFIG: Release
+  DERIVED_DATA: '{{.ROOT_DIR}}/.derivedData'
+  PROJECT: '{{.ROOT_DIR}}/toggleMute/toggleMute.xcodeproj'
+
+tasks:
+  install:
+    desc: Build toggleMute, replace the existing /Applications bundle, and launch it.
+    deps:
+      - tag-version
+    env:
+      MODULE_CACHE_DIR: '{{.DERIVED_DATA}}/ModuleCache.noindex'
+      SWIFTPM_CUSTOM_CACHE_PATH: '{{.DERIVED_DATA}}/SwiftPMCache'
+    vars:
+      PRODUCT_NAME: '{{default "toggleMute.app" .PRODUCT_NAME}}'
+      APP_PATH: '{{printf "%s/Build/Products/%s/%s" .DERIVED_DATA .CONFIG .PRODUCT_NAME}}'
+      RESOLVED_INSTALL_PATH: '{{if .INSTALL_PATH}}{{.INSTALL_PATH}}{{else}}{{printf "/Applications/%s" .PRODUCT_NAME}}{{end}}'
+    cmds:
+      - echo "Building {{.SCHEME}} ({{.CONFIG}})…"
+      - mkdir -p "{{.DERIVED_DATA}}/ModuleCache.noindex" "{{.DERIVED_DATA}}/SwiftPMCache" "{{.DERIVED_DATA}}/SourcePackages"
+      - xcodebuild -project "{{.PROJECT}}" -scheme "{{.SCHEME}}" -configuration "{{.CONFIG}}" -derivedDataPath "{{.DERIVED_DATA}}" -clonedSourcePackagesDirPath "{{.DERIVED_DATA}}/SourcePackages" build
+      - |
+        if [ ! -d "{{.APP_PATH}}" ]; then
+          echo "Build succeeded but {{.APP_PATH}} not found" >&2
+          exit 1
+        fi
+      - |
+        if [ -d "{{.RESOLVED_INSTALL_PATH}}" ]; then
+          echo "Removing existing install at {{.RESOLVED_INSTALL_PATH}}…"
+          rm -rf "{{.RESOLVED_INSTALL_PATH}}"
+        fi
+      - echo "Installing toggleMute to {{.RESOLVED_INSTALL_PATH}}…"
+      - ditto "{{.APP_PATH}}" "{{.RESOLVED_INSTALL_PATH}}"
+      - echo "Opening toggleMute…"
+      - open "{{.RESOLVED_INSTALL_PATH}}"
+
+  tag-version:
+    desc: Append a personal suffix to CFBundleShortVersionString (e.g. 1.0.0-y1).
+    vars:
+      INITIAL: '{{default "y" .INITIAL}}'
+    cmds:
+      - |
+        VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" toggleMute/toggleMute/Resources/Info.plist)
+        SUFFIX="{{.INITIAL}}1"
+        TAGGED="${VERSION}-${SUFFIX}"
+        /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionStringTag string ${TAGGED}" toggleMute/toggleMute/Resources/Info.plist 2>/dev/null || \
+        /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionStringTag ${TAGGED}" toggleMute/toggleMute/Resources/Info.plist
+        echo "Tagged version: ${TAGGED} (stored in CFBundleShortVersionStringTag)"
