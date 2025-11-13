@@ -22,8 +22,6 @@ class TouchBarController {
     
     let defaults = UserDefaults.standard
     var isMuted = true || false
-    var redMenuBarIconBackground = true || false
-    var redMenuBarIcon = true || false
     let imageUnmute = NSImage(named: NSImage.touchBarAudioInputTemplateName)
     let imageMute = NSImage(named: NSImage.touchBarAudioInputMuteTemplateName)
     var touchBarButton: NSButton?
@@ -133,23 +131,21 @@ class TouchBarController {
     
     
     func toggleMuteStateHard(setMute: Bool) {
-        
+
         let button = delegateController.statusItem.button
         isMuted = defaults.bool(forKey: "isMuted")
-        redMenuBarIconBackground = defaults.bool(forKey: "redMenuBarBackground")
-        redMenuBarIcon = defaults.bool(forKey: "redMenuBarIcon")
-                
+
         if(!setMute && isMuted){
-        
+
             defaults.set(false, forKey: "isMuted")
-            
+
             button?.image = imageUnmute?.tint(color: .alternateSelectedControlTextColor)
-            
+
             button?.layer?.backgroundColor = CGColor(red: 0, green: 0, blue: 0 , alpha: 0)
             touchBarButton?.image = imageUnmute
             touchBarButton?.bezelColor = NSColor.clear
             var unmuteVal = 80
-            
+
             if(isKeyPresentInUserDefaults(key: "defaultInputVol")){
                 unmuteVal = defaults.integer(forKey: "defaultInputVol")
             }
@@ -158,25 +154,18 @@ class TouchBarController {
             playSound(named: "Glass")
 
         } else if(setMute && !isMuted) {
-            
+
             defaults.set(true, forKey: "isMuted")
-                    
-            button?.image = imageMute?.tint(color: .selectedMenuItemTextColor)
+
+            // Always use red icon by default
+            button?.image = imageMute?.tint(color: .red)
             button?.layer?.backgroundColor = CGColor(red: 0, green: 0, blue: 0 , alpha: 0)
-            
+
             touchBarButton?.image = imageMute
             touchBarButton?.bezelColor = NSColor.red
             playSound(named: "Tink")
             setNewVolume(newValue: 0)
 
-            if(redMenuBarIcon){
-                button?.image = imageMute?.tint(color: .red)
-            }
-            
-            if(redMenuBarIconBackground){
-                button?.layer?.backgroundColor = CGColor(red: 1.0, green: 0, blue: 0 , alpha: 1.0)
-            }
-            
         }
 
     }
