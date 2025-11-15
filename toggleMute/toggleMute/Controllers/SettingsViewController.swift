@@ -56,30 +56,47 @@ class SettingsViewController: NSViewController {
         
         launchAtLoginCheckBox.state = preferences.launchAtLoginEnabled ? .on : .off
 
-        let recorder = KeyboardShortcuts.RecorderCocoa(for: .toggleMuteShortcut)
+        // Use UnifiedInputRecorder for both keyboard and controller input
+        let recorder = UnifiedInputRecorder(for: .toggleMuteShortcut)
         recorder.translatesAutoresizingMaskIntoConstraints = false
-        recorder.widthAnchor.constraint(greaterThanOrEqualToConstant: 130).isActive = true
-        recorder.heightAnchor.constraint(greaterThanOrEqualToConstant: 24).isActive = true
         shortcutSubView.addSubview(recorder)
+        NSLayoutConstraint.activate([
+            recorder.leadingAnchor.constraint(equalTo: shortcutSubView.leadingAnchor),
+            recorder.trailingAnchor.constraint(equalTo: shortcutSubView.trailingAnchor),
+            recorder.topAnchor.constraint(equalTo: shortcutSubView.topAnchor),
+            recorder.bottomAnchor.constraint(equalTo: shortcutSubView.bottomAnchor)
+        ])
 
-        let muteOnlyRecorder = KeyboardShortcuts.RecorderCocoa(for: .muteOnlyShortcut)
+        let muteOnlyRecorder = UnifiedInputRecorder(for: .muteOnlyShortcut)
         muteOnlyRecorder.translatesAutoresizingMaskIntoConstraints = false
-        muteOnlyRecorder.widthAnchor.constraint(greaterThanOrEqualToConstant: 130).isActive = true
-        muteOnlyRecorder.heightAnchor.constraint(greaterThanOrEqualToConstant: 24).isActive = true
         muteOnlyShortcutSubView.addSubview(muteOnlyRecorder)
+        NSLayoutConstraint.activate([
+            muteOnlyRecorder.leadingAnchor.constraint(equalTo: muteOnlyShortcutSubView.leadingAnchor),
+            muteOnlyRecorder.trailingAnchor.constraint(equalTo: muteOnlyShortcutSubView.trailingAnchor),
+            muteOnlyRecorder.topAnchor.constraint(equalTo: muteOnlyShortcutSubView.topAnchor),
+            muteOnlyRecorder.bottomAnchor.constraint(equalTo: muteOnlyShortcutSubView.bottomAnchor)
+        ])
 
-        let unmuteOnlyRecorder = KeyboardShortcuts.RecorderCocoa(for: .unmuteOnlyShortcut)
+        let unmuteOnlyRecorder = UnifiedInputRecorder(for: .unmuteOnlyShortcut)
         unmuteOnlyRecorder.translatesAutoresizingMaskIntoConstraints = false
-        unmuteOnlyRecorder.widthAnchor.constraint(greaterThanOrEqualToConstant: 130).isActive = true
-        unmuteOnlyRecorder.heightAnchor.constraint(greaterThanOrEqualToConstant: 24).isActive = true
         unmuteOnlyShortcutSubView.addSubview(unmuteOnlyRecorder)
+        NSLayoutConstraint.activate([
+            unmuteOnlyRecorder.leadingAnchor.constraint(equalTo: unmuteOnlyShortcutSubView.leadingAnchor),
+            unmuteOnlyRecorder.trailingAnchor.constraint(equalTo: unmuteOnlyShortcutSubView.trailingAnchor),
+            unmuteOnlyRecorder.topAnchor.constraint(equalTo: unmuteOnlyShortcutSubView.topAnchor),
+            unmuteOnlyRecorder.bottomAnchor.constraint(equalTo: unmuteOnlyShortcutSubView.bottomAnchor)
+        ])
 
-        let pushToToggleRecorder = KeyboardShortcuts.RecorderCocoa(for: .pushToToggleShortcut)
+        let pushToToggleRecorder = UnifiedInputRecorder(for: .pushToToggleShortcut)
         pushToToggleRecorder.translatesAutoresizingMaskIntoConstraints = false
-        pushToToggleRecorder.widthAnchor.constraint(greaterThanOrEqualToConstant: 130).isActive = true
-        pushToToggleRecorder.heightAnchor.constraint(greaterThanOrEqualToConstant: 24).isActive = true
         pushToToggleShortcutSubView.addSubview(pushToToggleRecorder)
-        
+        NSLayoutConstraint.activate([
+            pushToToggleRecorder.leadingAnchor.constraint(equalTo: pushToToggleShortcutSubView.leadingAnchor),
+            pushToToggleRecorder.trailingAnchor.constraint(equalTo: pushToToggleShortcutSubView.trailingAnchor),
+            pushToToggleRecorder.topAnchor.constraint(equalTo: pushToToggleShortcutSubView.topAnchor),
+            pushToToggleRecorder.bottomAnchor.constraint(equalTo: pushToToggleShortcutSubView.bottomAnchor)
+        ])
+
     }
     
     

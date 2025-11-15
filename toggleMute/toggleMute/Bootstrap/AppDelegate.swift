@@ -4,6 +4,7 @@ import Cocoa
 import LaunchAtLogin
 import KeyboardShortcuts
 import UserNotifications
+import GameController
 
 @NSApplicationMain
 class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -141,7 +142,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         KeyboardShortcuts.onKeyUp(for: .pushToToggleShortcut) {
             self.touchBarController.pushToToggleUp()
         }
-        
+
+        // Setup game controller support
+        GameControllerManager.shared.setup(with: touchBarController)
+
     }
     
     

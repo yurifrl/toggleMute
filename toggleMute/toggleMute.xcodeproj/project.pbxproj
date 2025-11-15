@@ -19,6 +19,8 @@
 		BD391AE9263C3F5600848049 /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = BD391AE8263C3F5600848049 /* LaunchAtLogin */; };
 		C3C528C02DF0162800BBC393 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = C3C528BF2DF0162800BBC393 /* KeyboardShortcuts */; };
 		C3DA000A2B88C00900B6BCCA /* EventMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3DA00092B88C00900B6BCCA /* EventMonitor.swift */; };
+		DA41A1152EC6FDF20017AFC4 /* GameControllerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA41A1142EC6FDF20017AFC4 /* GameControllerManager.swift */; };
+		DA41A1182EC6FFF90017AFC4 /* UnifiedInputRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA41A1172EC6FFF90017AFC4 /* UnifiedInputRecorder.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -51,6 +53,8 @@
 		44EB8BD723AC2ABD005A4A0B /* TouchBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchBarController.swift; sourceTree = "<group>"; };
 		44EB8BDB23AC350D005A4A0B /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
 		C3DA00092B88C00900B6BCCA /* EventMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventMonitor.swift; sourceTree = "<group>"; };
+		DA41A1142EC6FDF20017AFC4 /* GameControllerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameControllerManager.swift; sourceTree = "<group>"; };
+		DA41A1172EC6FFF90017AFC4 /* UnifiedInputRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedInputRecorder.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +73,8 @@
 		447B1DF7236795C100587E3A /* Controllers */ = {
 			isa = PBXGroup;
 			children = (
+				DA41A1172EC6FFF90017AFC4 /* UnifiedInputRecorder.swift */,
+				DA41A1142EC6FDF20017AFC4 /* GameControllerManager.swift */,
 				449F398C23173610008A0DBD /* SettingsController.swift */,
 				447B1DF8236795F100587E3A /* MainController.swift */,
 				44EB8BDB23AC350D005A4A0B /* SettingsViewController.swift */,
@@ -268,8 +274,10 @@
 			files = (
 				447B1DF9236795F100587E3A /* MainController.swift in Sources */,
 				44EB8BD923AC2ABD005A4A0B /* TouchBarController.swift in Sources */,
+				DA41A1152EC6FDF20017AFC4 /* GameControllerManager.swift in Sources */,
 				44EB8BDD23AC350D005A4A0B /* SettingsViewController.swift in Sources */,
 				44D551E02390830E0065505A /* SharedFileList.m in Sources */,
+				DA41A1182EC6FFF90017AFC4 /* UnifiedInputRecorder.swift in Sources */,
 				449F396A2317247B008A0DBD /* AppDelegate.swift in Sources */,
 				449F398D23173610008A0DBD /* SettingsController.swift in Sources */,
 				449F398323173003008A0DBD /* Preferences.swift in Sources */,
