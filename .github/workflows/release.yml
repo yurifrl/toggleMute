@@ -1,0 +1,215 @@
+name: Release
+
+# Tag-closed releases: push a `v*` tag (e.g. v1.6) and this workflow builds the
+# app, signs it with Developer ID (hardened runtime), notarizes it, wraps the
+# stapled app in a signed + notarized DMG, and publishes a GitHub Release.
+# A failed gate leaves the tag without a release — no unsigned fallback.
+#
+# workflow_dispatch runs are validation runs only: they exercise the pipeline
+# and fail fast at the signing gate while secrets are absent; they never
+# create a Release (release step is tag-only).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+env:
+  # Identity name is deployment-time configuration, never hardcoded.
+  # e.g. "Developer ID Application: Yuri Freire Lima (U9WN2GW95A)"
+  DEVELOPER_ID_APPLICATION: ${{ vars.DEVELOPER_ID_APPLICATION }}
+
+jobs:
+  release:
+    name: build + sign + notarize + dmg
+    runs-on: macos-15
+    permissions:
+      contents: write # release creation only
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Signing gate and keychain setup
+        env:
+          MACOS_SIGNING_P12_BASE64: ${{ secrets.MACOS_SIGNING_P12_BASE64 }}
+          MACOS_SIGNING_P12_PASSWORD: ${{ secrets.MACOS_SIGNING_P12_PASSWORD }}
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          : "${DEVELOPER_ID_APPLICATION:?repo var DEVELOPER_ID_APPLICATION is required}"
+          : "${MACOS_SIGNING_P12_BASE64:?secret MACOS_SIGNING_P12_BASE64 is required}"
+          : "${MACOS_SIGNING_P12_PASSWORD:?secret MACOS_SIGNING_P12_PASSWORD is required}"
+          : "${ASC_API_KEY_P8_BASE64:?secret ASC_API_KEY_P8_BASE64 is required}"
+          : "${ASC_KEY_ID:?secret ASC_KEY_ID is required}"
+          : "${ASC_ISSUER_ID:?secret ASC_ISSUER_ID is required}"
+          P12_PATH="$RUNNER_TEMP/togglemute-signing.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/togglemute-release.keychain-db"
+          printf '%s' "$MACOS_SIGNING_P12_BASE64" | base64 --decode > "$P12_PATH"
+          security create-keychain -p "$MACOS_SIGNING_P12_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$MACOS_SIGNING_P12_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$P12_PATH" -P "$MACOS_SIGNING_P12_PASSWORD" -t agg -k "$KEYCHAIN_PATH" \
+            -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -k "$MACOS_SIGNING_P12_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          # Team ID from the identity name: "… (U9WN2GW95A)" -> U9WN2GW95A
+          TEAM_ID="$(sed -n 's/.*(\([A-Z0-9]\{10\}\))$/\1/p' <<< "$DEVELOPER_ID_APPLICATION")"
+          [[ -n "$TEAM_ID" ]] || { echo "cannot parse team id from DEVELOPER_ID_APPLICATION" >&2; exit 1; }
+          echo "DEVELOPMENT_TEAM=$TEAM_ID" >> "$GITHUB_ENV"
+          ASC_P8_PATH="$RUNNER_TEMP/asc-api-key.p8"
+          printf '%s' "$ASC_API_KEY_P8_BASE64" | base64 --decode > "$ASC_P8_PATH"
+          echo "ASC_P8_PATH=$ASC_P8_PATH" >> "$GITHUB_ENV"
+
+      - name: Derive version from tag
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF_NAME" =~ ^v[0-9][0-9A-Za-z.-]*$ ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            # Dispatch validation run: never released.
+            VERSION="0.0.0-dispatch.${GITHUB_SHA::8}"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Build and archive toggleMute.app (CI signing overrides)
+        run: |
+          set -euo pipefail
+          xcodebuild archive \
+            -project toggleMute/toggleMute.xcodeproj \
+            -scheme toggleMute \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -archivePath build/App.xcarchive \
+            -derivedDataPath build/DerivedData \
+            -clonedSourcePackagesDirPath build/SourcePackages \
+            MARKETING_VERSION="$VERSION" \
+            DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$DEVELOPER_ID_APPLICATION" \
+            ENABLE_HARDENED_RUNTIME=YES \
+            CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
+            OTHER_CODE_SIGN_FLAGS=--timestamp \
+            ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO
+          test -d build/App.xcarchive/Products/Applications/toggleMute.app
+
+      - name: Verify signatures (app, nested bundles, entitlements)
+        run: |
+          set -euo pipefail
+          APP="build/App.xcarchive/Products/Applications/toggleMute.app"
+          codesign --verify --strict --verbose=2 "$APP"
+          BUNDLES="$(find "$APP" \( -name '*.app' -o -name '*.bundle' -o -name '*.framework' \) | sort -u)"
+          # Every signed binary needs a secure timestamp (notarization gate)
+          # and must not carry get-task-allow (App Store-only entitlement).
+          while IFS= read -r t; do
+            test -n "$t" || continue
+            codesign --verify --strict --verbose=2 "$t"
+            dvv="$(codesign -dvv "$t" 2>&1)"
+            grep -q '^Timestamp=' <<< "$dvv" \
+              || { echo "missing secure timestamp: $t" >&2; exit 1; }
+            ent="$(codesign -d --entitlements - "$t" 2>/dev/null)"
+            if grep -q 'get-task-allow' <<< "$ent"; then
+              echo "get-task-allow present: $t" >&2
+              exit 1
+            fi
+          done <<< "$(printf '%s\n%s' "$APP" "$BUNDLES")"
+
+      - name: Notarize, staple, and validate the app (release gate)
+        run: |
+          set -euo pipefail
+          APP="build/App.xcarchive/Products/Applications/toggleMute.app"
+          # Notarize the app (zip carrier), staple the bundle so every copied
+          # app carries the ticket.
+          ZIP="toggleMute-$VERSION-app.zip"
+          ditto -c -k --keepParent "$APP" "$ZIP"
+          # notarytool --wait has exited 0 even on status Invalid in practice,
+          # so gate on the status line from the output as well as the exit
+          # code. Capture output directly (not via a pipeline, which reports
+          # tee's status and would skip the log dump).
+          LOG="$RUNNER_TEMP/notarytool-app-output.log"
+          set +e
+          xcrun notarytool submit "$ZIP" \
+            --key "$ASC_P8_PATH" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID" --wait \
+            2>&1 | tee "$LOG"
+          rc=$?
+          set -e
+          if [[ $rc -ne 0 ]] || grep -qi 'status:[[:space:]]*Invalid' "$LOG"; then
+            SUB_ID="$(grep -Eo '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' "$LOG" | head -1 || true)"
+            if [[ -n "$SUB_ID" ]]; then
+              xcrun notarytool log "$SUB_ID" \
+                --key "$ASC_P8_PATH" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID" || true
+            fi
+            exit 1
+          fi
+          rm "$ZIP"
+          xcrun stapler staple "$APP"
+          xcrun stapler validate "$APP"
+          spctl --assess --type execute -vv "$APP"
+
+      - name: Assemble DMG payload
+        run: |
+          set -euo pipefail
+          APP="build/App.xcarchive/Products/Applications/toggleMute.app"
+          PAYLOAD="$RUNNER_TEMP/dmg-payload"
+          mkdir -p "$PAYLOAD"
+          ditto "$APP" "$PAYLOAD/toggleMute.app"
+          cp toggleMuteDisableQuarantine.command "$PAYLOAD/"
+          chmod +x "$PAYLOAD/toggleMuteDisableQuarantine.command"
+          cp README.md "$PAYLOAD/"
+          cp -R img "$PAYLOAD/img"
+          ln -s /Applications "$PAYLOAD/Applications"
+
+      - name: Create and sign the DMG
+        run: |
+          set -euo pipefail
+          DMG="toggleMute-$VERSION.dmg"
+          hdiutil create -volname "toggleMute" \
+            -srcfolder "$RUNNER_TEMP/dmg-payload" -ov -format UDZO "$DMG"
+          codesign --force --timestamp \
+            --keychain "$KEYCHAIN_PATH" \
+            --sign "$DEVELOPER_ID_APPLICATION" "$DMG"
+          codesign --verify --strict --verbose=2 "$DMG"
+
+      - name: Notarize, staple, and validate the DMG (release gate)
+        run: |
+          set -euo pipefail
+          DMG="toggleMute-$VERSION.dmg"
+          LOG="$RUNNER_TEMP/notarytool-dmg-output.log"
+          set +e
+          xcrun notarytool submit "$DMG" \
+            --key "$ASC_P8_PATH" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID" --wait \
+            2>&1 | tee "$LOG"
+          rc=$?
+          set -e
+          if [[ $rc -ne 0 ]] || grep -qi 'status:[[:space:]]*Invalid' "$LOG"; then
+            SUB_ID="$(grep -Eo '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' "$LOG" | head -1 || true)"
+            if [[ -n "$SUB_ID" ]]; then
+              xcrun notarytool log "$SUB_ID" \
+                --key "$ASC_P8_PATH" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID" || true
+            fi
+            exit 1
+          fi
+          xcrun stapler staple "$DMG"
+          xcrun stapler validate "$DMG"
+
+      - name: Checksums
+        run: |
+          set -euo pipefail
+          shasum -a 256 toggleMute-*.dmg > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --generate-notes \
+            "toggleMute-$VERSION.dmg" SHA256SUMS
