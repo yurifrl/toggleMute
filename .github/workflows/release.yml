@@ -65,6 +65,8 @@ jobs:
           ASC_P8_PATH="$RUNNER_TEMP/asc-api-key.p8"
           printf '%s' "$ASC_API_KEY_P8_BASE64" | base64 --decode > "$ASC_P8_PATH"
           echo "ASC_P8_PATH=$ASC_P8_PATH" >> "$GITHUB_ENV"
+          echo "ASC_KEY_ID=$ASC_KEY_ID" >> "$GITHUB_ENV"
+          echo "ASC_ISSUER_ID=$ASC_ISSUER_ID" >> "$GITHUB_ENV"
 
       - name: Derive version from tag
         run: |
