@@ -149,7 +149,13 @@ jobs:
             exit 1
           fi
           rm "$ZIP"
-          xcrun stapler staple "$APP"
+          # stapler fetches the ticket over the network (CloudKit); transient
+          # failures like NSURLError -1005 are retry-safe (staple is idempotent).
+          for attempt in 1 2 3; do
+            if xcrun stapler staple "$APP"; then break; fi
+            if [[ $attempt -eq 3 ]]; then exit 1; fi
+            sleep $((attempt * 15))
+          done
           xcrun stapler validate "$APP"
           spctl --assess --type execute -vv "$APP"
 
@@ -196,7 +202,13 @@ jobs:
             fi
             exit 1
           fi
-          xcrun stapler staple "$DMG"
+          # stapler fetches the ticket over the network (CloudKit); transient
+          # failures like NSURLError -1005 are retry-safe (staple is idempotent).
+          for attempt in 1 2 3; do
+            if xcrun stapler staple "$DMG"; then break; fi
+            if [[ $attempt -eq 3 ]]; then exit 1; fi
+            sleep $((attempt * 15))
+          done
           xcrun stapler validate "$DMG"
 
       - name: Checksums
