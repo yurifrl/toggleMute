@@ -150,44 +150,57 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     
     
     func checkForUpdates() {
-        
-        let getlocalVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
-        let stringLocalVersion = getlocalVersion! as NSString
+
+        guard let localVersionString = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String else { return }
+        let stringLocalVersion = localVersionString as NSString
         defaults.set(stringLocalVersion, forKey: "stringLocalVersion")
-        let localVersion = stringLocalVersion.doubleValue
-        
-        let url = URL(string: "https://raw.githubusercontent.com/satrik/toggleMute/main/toggleMute/toggleMute.xcodeproj/project.pbxproj")!
+        // Every step is optional-safe: any network/parse failure means a silent
+        // no-op, never a crash (the original version crashed on launch when the
+        // upstream version string wasn't parseable as a Double).
+        func versionComponents(_ s: String) -> [Int]? {
+            let numbers = s.drop(while: { $0 == "v" }).split(separator: ".").map { Int($0) }
+            guard !numbers.isEmpty, numbers.allSatisfy({ $0 != nil }) else { return nil }
+            return numbers.map { $0! }
+        }
+        func isVersion(_ a: [Int], newerThan b: [Int]) -> Bool {
+            for (x, y) in zip(a, b) {
+                if x != y { return x > y }
+            }
+            return a.count > b.count
+        }
+
+        let localVersion = versionComponents(localVersionString)
+
+        let url = URL(string: "https://api.github.com/repos/yurifrl/toggleMute/releases/latest")!
         let configuration = URLSessionConfiguration.ephemeral
         let session = URLSession(configuration: configuration)
         let task = session.dataTask(with: url) {(data, response, error) in
             guard let data = data, error == nil else { return }
-            let getString = String(data: data, encoding: .utf8)!
-            
-            let firstIndex = "MARKETING_VERSION = "
-            let secondIndex = ";"
-            let stringVersion = getString.slice(from: firstIndex, to: secondIndex)
-            let githubVersion = Double(stringVersion!)!
+            guard
+                let release = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let tagName = release["tag_name"] as? String,
+                let githubVersion = versionComponents(tagName)
+            else { return }
 
-            if githubVersion > localVersion {
+            if let local = localVersion, isVersion(githubVersion, newerThan: local) {
                 self.sendNotification()
             }
-            
         }
-        
+
         task.resume()
-        
+
     }
     
     
     func sendNotification() {
         
-        let checkInstallMethod = try? safeShell("brew list togglemute > /dev/null")
-        
+        let checkInstallMethod = try? safeShell("brew list --cask yurifrl-toggle-mute > /dev/null")
+
         var msgBody = "Just download the latest release"
         let btnTitle = "Go to github"
-        
+
         if (checkInstallMethod == "") {
-            msgBody = "Just run \"brew update && brew upgrade togglemute\" in your terminal to update"
+            msgBody = "Just run \"brew upgrade --cask yurifrl-toggle-mute\" in your terminal to update"
         }
         
         let content = UNMutableNotificationContent()
